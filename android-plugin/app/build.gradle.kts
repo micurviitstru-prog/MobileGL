@@ -54,7 +54,7 @@ fun Project.mobileGlApplicationIdSuffix(): String =
 
 // The Android API level of the build (the library's build.gradle reads the same property). Above
 // the shipped 26 the APK is a separate artifact: it gets an ".apiNN" id suffix and "-apiNN" version
-// suffix unless an explicit application-id suffix is given, so both installs can coexist.
+// suffix unless an explicit application-id suffix is given.
 fun Project.mobileGlAndroidApi(): Int =
     (findProperty("mobilegl.androidApi") ?: System.getenv("MOBILEGL_ANDROID_API") ?: "26").toString().trim().toInt()
 
@@ -69,7 +69,13 @@ fun Project.runGit(vararg arguments: String): String? = runCatching {
         }
 }.getOrNull()
 
-val signingStoreFile = file("../keystore.jks")
+// Use the temporary keystore created by GitHub Actions when available.
+// Keep the repository keystore as a local-build fallback.
+val signingStoreFile = (System.getenv("SIGNING_KEYSTORE_PATH")
+    ?.takeIf(String::isNotBlank)
+    ?.let(::file)
+    ?: file("../keystore.jks"))
+
 val signingStorePassword = System.getenv("SIGNING_STORE_PASSWORD")
 val signingKeyAlias = System.getenv("SIGNING_KEY_ALIAS")
 val signingKeyPassword = System.getenv("SIGNING_KEY_PASSWORD")
