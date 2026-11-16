@@ -115,6 +115,26 @@ jobs:
           done
           echo "ndk.dir=$ANDROID_HOME/ndk/27.3.13750724" >> android-plugin/local.properties
 
+      # Decode the private signing keystore from the repository secret.
+      - name: Prepare release signing keystore
+        env:
+          SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SIGNING_KEYSTORE_BASE64}" ]; then
+            echo "::error::SIGNING_KEYSTORE_BASE64 is not configured"
+            exit 1
+          fi
+
+          printf '%s' "${SIGNING_KEYSTORE_BASE64}" \
+            | base64 --decode > "${RUNNER_TEMP}/mobilegl-release.jks"
+
+          chmod 600 "${RUNNER_TEMP}/mobilegl-release.jks"
+          test -s "${RUNNER_TEMP}/mobilegl-release.jks"
+
+          echo "SIGNING_KEYSTORE_PATH=${RUNNER_TEMP}/mobilegl-release.jks" >> "${GITHUB_ENV}"
+
       - name: Update glslang external sources
         working-directory: 3rdparty/glslang
         run: python update_glslang_sources.py
@@ -178,6 +198,11 @@ jobs:
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+
+      # Always remove the temporary private keystore after the build.
+      - name: Remove temporary signing keystore
+        if: always()
+        run: rm -f "${RUNNER_TEMP}/mobilegl-release.jks"
 
       - name: Show ccache stats
         if: always()
